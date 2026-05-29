@@ -1,0 +1,57 @@
+{
+    "expo": {
+        "name": "Betsafe",
+        "slug": "betsafe",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/images/icon.png",
+        "scheme": "betsafe",
+        "userInterfaceStyle": "automatic",
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.jusecabu.betsafe"
+        },
+        "android": {
+            "adaptiveIcon": {
+                "backgroundColor": "#E6F4FE",
+                "foregroundImage": "./assets/images/android-icon-foreground.png",
+                "backgroundImage": "./assets/images/android-icon-background.png",
+                "monochromeImage": "./assets/images/android-icon-monochrome.png"
+            },
+            "predictiveBackGestureEnabled": false,
+            "package": "com.jusecabu.betsafe"
+        },
+        "plugins": [
+            "expo-router",
+            [
+                "expo-splash-screen",
+                {
+                    "image": "./assets/images/splash-icon.png",
+                    "resizeMode": "contain",
+                    "backgroundColor": "#ffffff"
+                }
+            ],
+            [
+                "expo-status-bar",
+                {
+                    "hidden": false,
+                    "style": "dark"
+                }
+            ]
+        ],
+        "experiments": {
+            "typedRoutes": true
+        },
+        "extra": {
+            "router": {},
+            "expo-status-bar": {
+                "style": "dark",
+                "hidden": false
+            },
+            "eas": {
+                "projectId": "f1545719-abf8-44ec-a0ea-4d70e747a86b"
+            }
+        },
+        "owner": "jusecabu"
+    }
+}

@@ -1,0 +1,8 @@
+{
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit",
+        "source.sortMembers": "explicit"
+    },
+    "cSpell.language": "en,es-ES",
+    "cSpell.words": ["mmkv"]
+}
