@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getMetadataFieldHints } from '@/constants/bet_metadata';
+import { getMetadataDefinition } from '@/constants/bet_metadata';
 import { services } from '@/lib/container';
 import {
     BetCategory,
@@ -66,6 +66,8 @@ export default function CreateBetScreen() {
     const [selectedAwayTeamId, setSelectedAwayTeamId] = useState('');
     const [selectedCategoryId, setSelectedCategoryId] = useState('');
     const [selectedMarketId, setSelectedMarketId] = useState('');
+    const [selectedCategoryMarketId, setSelectedCategoryMarketId] =
+        useState('');
     const [selectedSelectionId, setSelectedSelectionId] = useState('');
     const [odds, setOdds] = useState('');
     const [stake, setStake] = useState('');
@@ -75,86 +77,65 @@ export default function CreateBetScreen() {
     >({});
     const [loadingTeams, setLoadingTeams] = useState(false);
 
-    const selectedMarket = markets.find((item) => item.id === selectedMarketId);
-    const selectedSelection = selections.find(
-        (item) => item.id === selectedSelectionId,
+    const selectedCategory = categories.find(
+        (item) => item.id === selectedCategoryId,
     );
-    const metadataHints = getMetadataFieldHints(
+    const selectedMarket = markets.find((item) => item.id === selectedMarketId);
+    const metadataDefinition = getMetadataDefinition(
+        selectedCategory?.code,
         selectedMarket?.code,
-        selectedSelection?.code,
     );
 
-    const updateMetadataValue = (
-        scope: 'market' | 'selection',
-        key: string,
-        value: string,
-    ) => {
+    const updateMetadataValue = (key: string, value: string) => {
         setMetadataValues((current) => ({
             ...current,
-            [`${scope}.${key}`]: value,
+            [key]: value,
         }));
     };
 
-    const readMetadataValue = (scope: 'market' | 'selection', key: string) =>
-        metadataValues[`${scope}.${key}`] ?? '';
+    const readMetadataValue = (key: string) => metadataValues[key] ?? '';
 
     const buildMetadataObject = () => {
-        const marketMetadata: Record<string, unknown> = {};
-        const selectionMetadata: Record<string, unknown> = {};
+        if (!metadataDefinition) {
+            return {};
+        }
 
-        const applyField = (
-            scope: 'market' | 'selection',
-            fieldKey: string,
-            fieldType: 'text' | 'number' | 'boolean',
-            rawValue: string,
-        ) => {
-            if (!rawValue.trim()) {
+        const rawMetadata: Record<string, unknown> = {};
+
+        metadataDefinition.fields.forEach((field) => {
+            const value = readMetadataValue(field.key).trim();
+
+            if (!value) {
+                if (field.required) {
+                    throw new Error(`El campo ${field.label} es requerido`);
+                }
                 return;
             }
 
-            let parsedValue: string | number | boolean = rawValue.trim();
-
-            if (fieldType === 'number') {
-                const parsedNumber = Number(rawValue);
-                if (!Number.isFinite(parsedNumber)) {
-                    throw new Error(`El campo ${fieldKey} debe ser numérico`);
+            if (field.type === 'number') {
+                const parsed = Number(value);
+                if (!Number.isFinite(parsed)) {
+                    throw new Error(
+                        `El campo ${field.label} debe ser numérico`,
+                    );
                 }
-                parsedValue = parsedNumber;
+                rawMetadata[field.key] = parsed;
+                return;
             }
 
-            if (fieldType === 'boolean') {
-                parsedValue = rawValue === 'true';
+            if (field.type === 'select' && field.options?.length) {
+                if (!field.options.includes(value)) {
+                    throw new Error(`El valor de ${field.label} no es válido`);
+                }
             }
 
-            if (scope === 'market') {
-                marketMetadata[fieldKey] = parsedValue;
-            } else {
-                selectionMetadata[fieldKey] = parsedValue;
-            }
-        };
-
-        metadataHints.marketFields.forEach((field) => {
-            applyField(
-                'market',
-                field.key,
-                field.type,
-                readMetadataValue('market', field.key),
-            );
+            rawMetadata[field.key] = value;
         });
 
-        metadataHints.selectionFields.forEach((field) => {
-            applyField(
-                'selection',
-                field.key,
-                field.type,
-                readMetadataValue('selection', field.key),
-            );
-        });
-
-        return {
-            market: marketMetadata,
-            selection: selectionMetadata,
-        };
+        return metadataDefinition.schema.parse(rawMetadata) as Record<
+            string,
+            unknown
+        >;
     };
 
     const clearEventSelection = () => {
@@ -169,6 +150,7 @@ export default function CreateBetScreen() {
     const clearDependentCatalogSelection = () => {
         setSelectedCategoryId('');
         setSelectedMarketId('');
+        setSelectedCategoryMarketId('');
         setSelectedSelectionId('');
         setMarkets([]);
         setSelections([]);
@@ -288,6 +270,7 @@ export default function CreateBetScreen() {
             if (!selectedCategoryId) {
                 setMarkets([]);
                 setSelectedMarketId('');
+                setSelectedCategoryMarketId('');
                 setSelections([]);
                 setSelectedSelectionId('');
                 setLoadingMarkets(false);
@@ -296,6 +279,7 @@ export default function CreateBetScreen() {
 
             setLoadingMarkets(true);
             setSelectedMarketId('');
+            setSelectedCategoryMarketId('');
             setSelections([]);
             setSelectedSelectionId('');
 
@@ -331,16 +315,32 @@ export default function CreateBetScreen() {
             if (!selectedMarketId) {
                 setSelections([]);
                 setSelectedSelectionId('');
+                setMetadataValues({});
+                setSelectedCategoryMarketId('');
                 setLoadingSelections(false);
                 return;
             }
 
             setLoadingSelections(true);
             setSelectedSelectionId('');
+            setMetadataValues({});
 
             try {
-                const data =
-                    await services.catalog.getSelections(selectedMarketId);
+                const categoryMarketId =
+                    await services.catalog.getCategoryMarketId(
+                        selectedCategoryId,
+                        selectedMarketId,
+                    );
+
+                if (!active) {
+                    return;
+                }
+
+                setSelectedCategoryMarketId(categoryMarketId ?? '');
+
+                const data = await services.catalog.getSelections(
+                    categoryMarketId ?? undefined,
+                );
 
                 if (active) {
                     setSelections(data);
@@ -348,6 +348,7 @@ export default function CreateBetScreen() {
             } catch {
                 if (active) {
                     setSelections([]);
+                    setSelectedCategoryMarketId('');
                 }
             } finally {
                 if (active) {
@@ -361,7 +362,7 @@ export default function CreateBetScreen() {
         return () => {
             active = false;
         };
-    }, [selectedMarketId]);
+    }, [selectedCategoryId, selectedMarketId]);
 
     useEffect(() => {
         let active = true;
@@ -721,87 +722,79 @@ export default function CreateBetScreen() {
                         />
                     </View>
 
-                    {metadataHints.marketFields.length > 0 ? (
+                    {metadataDefinition ? (
                         <View style={styles.metadataGroup}>
-                            <Text style={styles.label}>
-                                Metadatos del mercado
-                            </Text>
-                            {metadataHints.marketFields.map((field) => (
+                            <Text style={styles.label}>Metadatos</Text>
+                            {metadataDefinition.fields.map((field) => (
                                 <View
-                                    key={`market-${field.key}`}
+                                    key={`meta-${field.key}`}
                                     style={styles.field}
                                 >
                                     <Text style={styles.subLabel}>
                                         {field.label}
+                                        {field.required ? ' *' : ''}
                                     </Text>
-                                    <TextInput
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                        keyboardType={
-                                            field.type === 'number'
-                                                ? 'decimal-pad'
-                                                : 'default'
-                                        }
-                                        placeholder={
-                                            field.description ?? field.label
-                                        }
-                                        placeholderTextColor="#8A8F98"
-                                        style={styles.input}
-                                        value={readMetadataValue(
-                                            'market',
-                                            field.key,
-                                        )}
-                                        onChangeText={(value) =>
-                                            updateMetadataValue(
-                                                'market',
-                                                field.key,
-                                                value,
-                                            )
-                                        }
-                                    />
-                                </View>
-                            ))}
-                        </View>
-                    ) : null}
 
-                    {metadataHints.selectionFields.length > 0 ? (
-                        <View style={styles.metadataGroup}>
-                            <Text style={styles.label}>
-                                Metadatos de la selección
-                            </Text>
-                            {metadataHints.selectionFields.map((field) => (
-                                <View
-                                    key={`selection-${field.key}`}
-                                    style={styles.field}
-                                >
-                                    <Text style={styles.subLabel}>
-                                        {field.label}
-                                    </Text>
-                                    <TextInput
-                                        autoCapitalize="none"
-                                        autoCorrect={false}
-                                        keyboardType={
-                                            field.type === 'number'
-                                                ? 'decimal-pad'
-                                                : 'default'
-                                        }
-                                        placeholder={
-                                            field.description ?? field.label
-                                        }
-                                        placeholderTextColor="#8A8F98"
-                                        style={styles.input}
-                                        value={readMetadataValue(
-                                            'selection',
-                                            field.key,
-                                        )}
-                                        onChangeText={(value) =>
-                                            updateMetadataValue(
-                                                'selection',
-                                                field.key,
-                                                value,
-                                            )
-                                        }
-                                    />
+                                    {field.type === 'select' &&
+                                    field.options ? (
+                                        <View style={styles.optionsRow}>
+                                            {field.options.map((option) => {
+                                                const selected =
+                                                    readMetadataValue(
+                                                        field.key,
+                                                    ) === option;
+
+                                                return (
+                                                    <Pressable
+                                                        key={`${field.key}-${option}`}
+                                                        style={[
+                                                            styles.optionChip,
+                                                            selected &&
+                                                                styles.optionChipSelected,
+                                                        ]}
+                                                        onPress={() =>
+                                                            updateMetadataValue(
+                                                                field.key,
+                                                                option,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Text
+                                                            style={[
+                                                                styles.optionChipText,
+                                                                selected &&
+                                                                    styles.optionChipTextSelected,
+                                                            ]}
+                                                        >
+                                                            {option}
+                                                        </Text>
+                                                    </Pressable>
+                                                );
+                                            })}
+                                        </View>
+                                    ) : (
+                                        <TextInput
+                                            autoCapitalize="none"
+                                            autoCorrect={false}
+                                            keyboardType={
+                                                field.type === 'number'
+                                                    ? 'decimal-pad'
+                                                    : 'default'
+                                            }
+                                            placeholder={
+                                                field.description ?? field.label
+                                            }
+                                            placeholderTextColor="#8A8F98"
+                                            style={styles.input}
+                                            value={readMetadataValue(field.key)}
+                                            onChangeText={(value) =>
+                                                updateMetadataValue(
+                                                    field.key,
+                                                    value,
+                                                )
+                                            }
+                                        />
+                                    )}
                                 </View>
                             ))}
                         </View>
@@ -1014,6 +1007,31 @@ const styles = StyleSheet.create({
     },
     metadataGroup: {
         gap: 12,
+    },
+    optionsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+    },
+    optionChip: {
+        borderColor: '#D0D5DD',
+        borderRadius: 999,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        backgroundColor: '#F8FAFC',
+    },
+    optionChipSelected: {
+        backgroundColor: '#101828',
+        borderColor: '#101828',
+    },
+    optionChipText: {
+        color: '#344054',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    optionChipTextSelected: {
+        color: '#F5F7FA',
     },
     chipsContainer: {
         flexDirection: 'row',

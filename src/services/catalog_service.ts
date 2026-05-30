@@ -127,14 +127,21 @@ export class CatalogService {
         return data;
     }
 
+    async getCategoryMarketId(
+        categoryId: string,
+        marketId: string,
+    ): Promise<string | null> {
+        return this.catalogRepo.getCategoryMarketId(categoryId, marketId);
+    }
+
     // ── Bet selections ─────────────────────────────────────────
 
-    async getSelections(marketId?: string): Promise<BetSelection[]> {
-        const key = `bet_selections:${marketId ?? 'all'}`;
+    async getSelections(categoryMarketId?: string): Promise<BetSelection[]> {
+        const key = `bet_selections:${categoryMarketId ?? 'all'}`;
         const cached = this.getCached<BetSelection[]>(key);
         if (cached) return cached;
 
-        const data = await this.catalogRepo.getSelections(marketId);
+        const data = await this.catalogRepo.getSelections(categoryMarketId);
         this.setCached(key, data);
         return data;
     }

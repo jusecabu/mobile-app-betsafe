@@ -115,7 +115,7 @@ export class CatalogRepository {
         }
 
         const { data: linkRows, error: linkError } = await this.db
-            .from('bet_category_markets')
+            .from('category_markets')
             .select('market_id')
             .eq('category_id', categoryId);
 
@@ -136,10 +136,25 @@ export class CatalogRepository {
         return data ?? [];
     }
 
+    async getCategoryMarketId(
+        categoryId: string,
+        marketId: string,
+    ): Promise<string | null> {
+        const { data, error } = await this.db
+            .from('category_markets')
+            .select('id')
+            .eq('category_id', categoryId)
+            .eq('market_id', marketId)
+            .maybeSingle();
+
+        if (error) handlePostgrestError(error);
+        return data?.id ?? null;
+    }
+
     // ── Bet selections ─────────────────────────────────────────
 
-    async getSelections(marketId?: string): Promise<BetSelection[]> {
-        if (!marketId) {
+    async getSelections(categoryMarketId?: string): Promise<BetSelection[]> {
+        if (!categoryMarketId) {
             const { data, error } = await this.db
                 .from('bet_selections')
                 .select('*')
@@ -150,9 +165,9 @@ export class CatalogRepository {
         }
 
         const { data: linkRows, error: linkError } = await this.db
-            .from('bet_market_selections')
+            .from('category_market_selections')
             .select('selection_id')
-            .eq('market_id', marketId);
+            .eq('category_market_id', categoryMarketId);
 
         if (linkError) handlePostgrestError(linkError);
 

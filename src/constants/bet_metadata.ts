@@ -1,44 +1,179 @@
-export type BetMetadataField = {
+// src/features/bets/constants/bet-metadata.ts
+
+import { z } from 'zod';
+
+export const PERIOD_OPTIONS = ['first_half', 'second_half'] as const;
+
+export const TEAM_SCOPE_OPTIONS = ['home_team', 'away_team'] as const;
+
+export type FieldType = 'number' | 'select';
+
+export interface MetadataField {
     key: string;
     label: string;
+    type: FieldType;
+    required: boolean;
+    options?: readonly string[];
     description?: string;
-    type: 'text' | 'number' | 'boolean';
-};
+}
 
-export const MARKET_METADATA_FIELDS: Record<string, BetMetadataField[]> = {
-    goals: [
-        { key: 'line', label: 'Línea', type: 'number' },
-        { key: 'period', label: 'Periodo', type: 'text' },
-    ],
-    corners: [{ key: 'line', label: 'Línea', type: 'number' }],
-    cards: [{ key: 'line', label: 'Línea', type: 'number' }],
-    shots: [{ key: 'line', label: 'Línea', type: 'number' }],
-    rebounds: [{ key: 'line', label: 'Línea', type: 'number' }],
-    assists: [{ key: 'line', label: 'Línea', type: 'number' }],
-    points: [{ key: 'line', label: 'Línea', type: 'number' }],
-    fouls: [{ key: 'line', label: 'Línea', type: 'number' }],
-};
+export interface MetadataDefinition {
+    fields: readonly MetadataField[];
+    schema: z.ZodType;
+}
 
-export const SELECTION_METADATA_FIELDS: Record<string, BetMetadataField[]> = {
-    OVER: [{ key: 'handicap', label: 'Handicap', type: 'number' }],
-    UNDER: [{ key: 'handicap', label: 'Handicap', type: 'number' }],
-    HOME: [{ key: 'team', label: 'Equipo', type: 'text' }],
-    AWAY: [{ key: 'team', label: 'Equipo', type: 'text' }],
-    DRAW: [{ key: 'note', label: 'Nota', type: 'text' }],
-    YES: [{ key: 'note', label: 'Nota', type: 'text' }],
-    NO: [{ key: 'note', label: 'Nota', type: 'text' }],
-};
+export const BET_METADATA = {
+    MATCH_RESULT: {
+        winner: {
+            fields: [],
+            schema: z.object({}),
+        },
+    },
 
-export function getMetadataFieldHints(
+    PERIOD_RESULT: {
+        winner: {
+            fields: [
+                {
+                    key: 'period',
+                    label: 'Periodo',
+                    type: 'select',
+                    required: true,
+                    options: PERIOD_OPTIONS,
+                },
+            ],
+
+            schema: z.object({
+                period: z.enum(PERIOD_OPTIONS),
+            }),
+        },
+    },
+
+    OVER_UNDER: {
+        goals: createLineDefinition(),
+        corners: createLineDefinition(),
+        cards: createLineDefinition(),
+        shots: createLineDefinition(),
+        shots_on_target: createLineDefinition(),
+        fouls: createLineDefinition(),
+    },
+
+    HANDICAP: {
+        goals: {
+            fields: [
+                {
+                    key: 'handicap',
+                    label: 'Handicap',
+                    type: 'number',
+                    required: true,
+                },
+            ],
+
+            schema: z.object({
+                handicap: z.number(),
+            }),
+        },
+    },
+
+    TEAM_PROP: {
+        goals: createTeamLineDefinition(),
+        corners: createTeamLineDefinition(),
+        cards: createTeamLineDefinition(),
+        shots: createTeamLineDefinition(),
+        shots_on_target: createTeamLineDefinition(),
+        fouls: createTeamLineDefinition(),
+    },
+
+    BOTH_TEAMS_SCORE: {
+        goals: {
+            fields: [],
+            schema: z.object({}),
+        },
+    },
+
+    CORRECT_SCORE: {
+        goals: {
+            fields: [
+                {
+                    key: 'home_score',
+                    label: 'Goles Local',
+                    type: 'number',
+                    required: true,
+                },
+                {
+                    key: 'away_score',
+                    label: 'Goles Visitante',
+                    type: 'number',
+                    required: true,
+                },
+            ],
+
+            schema: z.object({
+                home_score: z.number().int().min(0),
+                away_score: z.number().int().min(0),
+            }),
+        },
+    },
+} as const;
+
+export function getMetadataDefinition(
+    categoryCode?: string,
     marketCode?: string,
-    selectionCode?: string,
 ) {
+    if (!categoryCode || !marketCode) {
+        return null;
+    }
+
+    const categoryEntry = (
+        BET_METADATA as unknown as Record<
+            string,
+            Record<string, MetadataDefinition>
+        >
+    )[categoryCode];
+    if (!categoryEntry) {
+        return null;
+    }
+
+    return categoryEntry[marketCode] ?? null;
+}
+
+function createLineDefinition(): MetadataDefinition {
     return {
-        marketFields: marketCode
-            ? (MARKET_METADATA_FIELDS[marketCode] ?? [])
-            : [],
-        selectionFields: selectionCode
-            ? (SELECTION_METADATA_FIELDS[selectionCode] ?? [])
-            : [],
+        fields: [
+            {
+                key: 'line',
+                label: 'Línea',
+                type: 'number',
+                required: true,
+            },
+        ],
+
+        schema: z.object({
+            line: z.number().positive(),
+        }),
+    };
+}
+
+function createTeamLineDefinition(): MetadataDefinition {
+    return {
+        fields: [
+            {
+                key: 'scope',
+                label: 'Equipo',
+                type: 'select',
+                required: true,
+                options: TEAM_SCOPE_OPTIONS,
+            },
+            {
+                key: 'line',
+                label: 'Línea',
+                type: 'number',
+                required: true,
+            },
+        ],
+
+        schema: z.object({
+            scope: z.enum(TEAM_SCOPE_OPTIONS),
+            line: z.number().positive(),
+        }),
     };
 }
