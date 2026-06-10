@@ -78,6 +78,34 @@ export class BetRepository {
         return (data ?? []) as BetWithRelations[];
     }
 
+    async findAllByProfile(profileId: string): Promise<BetWithRelations[]> {
+        const pageSize = 500;
+        const rows: BetWithRelations[] = [];
+        let offset = 0;
+
+        while (true) {
+            const { data, error } = await this.db
+                .from('bets')
+                .select(BET_WITH_RELATIONS)
+                .eq('profile_id', profileId)
+                .order('placed_at', { ascending: false })
+                .range(offset, offset + pageSize - 1);
+
+            if (error) handlePostgrestError(error);
+
+            const batch = (data ?? []) as BetWithRelations[];
+            rows.push(...batch);
+
+            if (batch.length < pageSize) {
+                break;
+            }
+
+            offset += pageSize;
+        }
+
+        return rows;
+    }
+
     async findPending(profileId: string): Promise<Bet[]> {
         const { data, error } = await this.db
             .from('bets')

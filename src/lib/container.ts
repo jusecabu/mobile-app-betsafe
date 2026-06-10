@@ -11,7 +11,6 @@
 import { supabase } from './supabase'; // tu cliente Supabase existente
 
 // Repositorios
-import { AnalyticsRepository } from '@/repositories/analytics_repository';
 import { BetRepository } from '@/repositories/bet_repository';
 import { CatalogRepository } from '@/repositories/catalog_repository';
 import { EventRepository } from '@/repositories/event_repository';
@@ -30,7 +29,6 @@ const profileRepo = new ProfileRepository(supabase);
 const betRepo = new BetRepository(supabase);
 const eventRepo = new EventRepository(supabase);
 const catalogRepo = new CatalogRepository(supabase);
-const analyticsRepo = new AnalyticsRepository(supabase);
 
 // ── Servicios ─────────────────────────────────────────────────
 export const services = {
@@ -39,7 +37,7 @@ export const services = {
     bet: new BetService(betRepo),
     event: new EventService(eventRepo),
     catalog: new CatalogService(catalogRepo),
-    analytics: new AnalyticsService(analyticsRepo),
+    analytics: new AnalyticsService(betRepo),
 } as const;
 
 // Tipos exportados para uso en hooks / stores

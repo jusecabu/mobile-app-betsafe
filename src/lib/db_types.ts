@@ -142,6 +142,8 @@ export interface PerformanceByCategory {
     total_bets: number;
     won: number;
     lost: number;
+    void: number;
+    pending: number;
     winrate_pct: number | null;
     total_staked: number;
     total_profit: number;
@@ -153,9 +155,14 @@ export interface PerformanceByMarket {
     market_code: string;
     market_name: string;
     total_bets: number;
+    won: number;
+    lost: number;
+    void: number;
+    pending: number;
     winrate_pct: number | null;
     total_staked: number;
     total_profit: number;
+    roi_pct: number | null;
 }
 
 export interface PerformanceByLeague {
@@ -164,17 +171,43 @@ export interface PerformanceByLeague {
     league_name: string;
     sport_name: string;
     total_bets: number;
+    won: number;
+    lost: number;
+    void: number;
+    pending: number;
     winrate_pct: number | null;
     total_staked: number;
     total_profit: number;
+    roi_pct: number | null;
+}
+
+export interface PerformanceByTeam {
+    profile_id: string;
+    team_id: string;
+    team_name: string;
+    total_bets: number;
+    won: number;
+    lost: number;
+    void: number;
+    pending: number;
+    winrate_pct: number | null;
+    total_staked: number;
+    total_profit: number;
+    roi_pct: number | null;
 }
 
 export interface PerformanceByOddsRange {
     profile_id: string;
     odds_range: string;
     total_bets: number;
+    won: number;
+    lost: number;
+    void: number;
+    pending: number;
     winrate_pct: number | null;
+    total_staked: number;
     total_profit: number;
+    roi_pct: number | null;
 }
 
 // ── Tipos enriquecidos (joins comunes) ───────────────────────
